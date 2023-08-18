@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division
-
+import pdb
 import os
 from collections import Counter
 
@@ -13,7 +13,6 @@ from .fourier import FourierMixIn
 from .difference import DifferenceMixIn
 from ._io import IOMixIn
 from ._layout import LayoutMixIn
-
 
 class Graph(FourierMixIn, DifferenceMixIn, IOMixIn, LayoutMixIn):
     r"""Base graph class.
@@ -1038,3 +1037,109 @@ class Graph(FourierMixIn, DifferenceMixIn, IOMixIn, LayoutMixIn):
         r"""Docstring overloaded at import time."""
         from pygsp.plotting import _plot_spectrogram
         _plot_spectrogram(self, node_idx=node_idx)
+
+
+class DiGraph(Graph):
+
+    def __init__(self, adjacency, lap_type='magnetic', coords=None,
+                 plotting={}, **lap_kwargs):
+    
+        self.lap_kwargs = lap_kwargs
+        super().__init__(adjacency, lap_type=lap_type, coords=coords, plotting=plotting)
+
+    def compute_laplacian(self, lap_type='magnetic'):
+        r"""Compute a graph Laplacian appropriate for directed graphs.
+        """
+
+        if lap_type != self.lap_type:
+            # Those attributes are invalidated when the Laplacian is changed.
+            # Alternative: don't allow the user to change the Laplacian.
+            self._lmax = None
+            self._U = None
+            self._e = None
+            self._coherence = None
+            self._D = None
+
+        self.lap_type = lap_type
+
+        if lap_type != 'magnetic':
+            raise NotImplementedError
+
+        q = self.lap_kwargs['q']
+        W = self.W.todense()
+        Wsymm = 0.5 * (W + W.T)
+        # (Unweighted, undirected) adjacency matrix
+        Adj = 1 * (Wsymm != 0)
+        # Degree matrix
+        D = np.diag(np.array(np.sum(Adj, axis=1)).squeeze())
+
+        # Flux matrix
+        Q = np.zeros(W.shape, dtype=complex)
+        for i in range(W.shape[0]):
+            for j in range(W.shape[0]):
+                Q[i, j] = np.exp(1j * 2 * np.pi * q * (W[i, j] - W[j, i]))
+        
+        self.L = D - np.multiply(Q, Wsymm)
+
+    def dirichlet_energy(self, x):
+        r"""Compute the Dirichlet energy of a signal defined on the vertices.
+
+        The Dirichlet energy of a signal :math:`x` is defined as
+
+        .. math:: x^\top L x = \| \nabla_\mathcal{G} x \|_2^2
+                             = \frac12 \sum_{i,j} W[i, j] (x[j] - x[i])^2
+
+        for the combinatorial Laplacian, and
+
+        .. math:: x^\top L x = \| \nabla_\mathcal{G} x \|_2^2
+            = \frac12 \sum_{i,j} W[i, j]
+              \left( \frac{x[j]}{d[j]} - \frac{x[i]}{d[i]} \right)^2
+
+        for the normalized Laplacian, where :math:`d` is the weighted degree
+        :attr:`dw`, :math:`\nabla_\mathcal{G} x = D^\top x` and :math:`D` is
+        the differential operator :attr:`D`. See :meth:`grad` for the
+        definition of the gradient :math:`\nabla_\mathcal{G}`.
+
+        Parameters
+        ----------
+        x : array_like
+            Signal of length :attr:`n_vertices` living on the vertices.
+
+        Returns
+        -------
+        energy : float
+            The Dirichlet energy of the graph signal.
+
+        See Also
+        --------
+        grad : compute the gradient of a vertex signal
+
+        Examples
+        --------
+
+        Non-directed graph:
+
+        >>> graph = graphs.Path(5, directed=False)
+        >>> signal = [0, 2, 2, 4, 4]
+        >>> graph.dirichlet_energy(signal)
+        8.0
+        >>> # The Dirichlet energy is indeed the squared norm of the gradient.
+        >>> graph.compute_differential_operator()
+        >>> graph.grad(signal)
+        array([2., 0., 2., 0.])
+
+        Directed graph:
+
+        >>> graph = graphs.Path(5, directed=True)
+        >>> signal = [0, 2, 2, 4, 4]
+        >>> graph.dirichlet_energy(signal)
+        4.0
+        >>> # The Dirichlet energy is indeed the squared norm of the gradient.
+        >>> graph.compute_differential_operator()
+        >>> graph.grad(signal)
+        array([1.41421356, 0.        , 1.41421356, 0.        ])
+
+        """
+        x = self._check_signal(x)
+        return x.T.dot(self.L.dot(x))
+

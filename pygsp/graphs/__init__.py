@@ -186,7 +186,7 @@ Nearest-neighbors graphs constructed from point clouds
 
 """
 
-from .graph import Graph  # noqa: F401
+from .graph import Graph, DiGraph  # noqa: F401
 from .airfoil import Airfoil  # noqa: F401
 from .barabasialbert import BarabasiAlbert  # noqa: F401
 from .comet import Comet  # noqa: F401
