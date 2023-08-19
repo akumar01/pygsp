@@ -27,7 +27,7 @@ from __future__ import division
 import functools
 
 import numpy as np
-
+import pdb
 from pygsp import utils
 
 
@@ -448,7 +448,6 @@ def _plot_graph(G, vertex_color, vertex_size, highlight,
         vertex_color = np.asanyarray(vertex_color).squeeze()
         check_shape(vertex_color, 'Vertex color', G.n_vertices,
                     many=(G.coords.ndim == 1))
-
     if vertex_size is None:
         vertex_size = G.plotting['vertex_size']
     elif not np.isscalar(vertex_size):
@@ -507,7 +506,6 @@ def _plt_plot_graph(G, vertex_color, vertex_size, highlight,
                     indices, colorbar, limits, ax):
 
     mpl, plt, mplot3d = _import_plt()
-
     if edges and (G.coords.ndim != 1):  # No edges for 1D plots.
 
         sources, targets, _ = G.get_edge_list()

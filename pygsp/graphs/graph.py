@@ -370,7 +370,7 @@ class Graph(FourierMixIn, DifferenceMixIn, IOMixIn, LayoutMixIn):
     def is_directed(self):
         r"""Check if the graph has directed edges (cached).
 
-        In this framework, we consider that a graph is directed if and
+        In this framework, we consider that a graph is directed if and  
         only if its weight matrix is not symmetric.
 
         Returns
@@ -1071,15 +1071,19 @@ class DiGraph(Graph):
         # (Unweighted, undirected) adjacency matrix
         Adj = 1 * (Wsymm != 0)
         # Degree matrix
-        D = np.diag(np.array(np.sum(Adj, axis=1)).squeeze())
-
+        D = np.diag(np.ravel(Adj.sum(axis=0)))
         # Flux matrix
         Q = np.zeros(W.shape, dtype=complex)
         for i in range(W.shape[0]):
             for j in range(W.shape[0]):
                 Q[i, j] = np.exp(1j * 2 * np.pi * q * (W[i, j] - W[j, i]))
-        
-        self.L = D - np.multiply(Q, Wsymm)
+        self.L = D - np.multiply(Q, Adj)
+        e, U = np.linalg.eigh(self.L)
+        # Store these away so parent classes don't try to calculate them
+
+        self._e = e
+        self._U = U
+        self._lmax = max(e)
 
     def dirichlet_energy(self, x):
         r"""Compute the Dirichlet energy of a signal defined on the vertices.
